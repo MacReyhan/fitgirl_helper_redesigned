@@ -271,8 +271,30 @@ class FitgirlExtractorApp:
         try:
             self.root.after(0, self.update_ui, f"Initializing browser to bypass Cloudflare...", 0, total)
             
-            options = uc.ChromeOptions()
-            driver = uc.Chrome(options=options, use_subprocess=True)
+            # --- NEW AUTO-VERSION FALLBACK LOGIC ---
+            try:
+                # Try normally first with a fresh options object
+                options1 = uc.ChromeOptions()
+                driver = uc.Chrome(options=options1, use_subprocess=True)
+            except Exception as e:
+                error_msg = str(e)
+                if "Current browser version is" in error_msg:
+                    # Extract the major version number the user ACTUALLY has installed
+                    match = re.search(r"Current browser version is (\d+)", error_msg)
+                    if match:
+                        correct_version = int(match.group(1))
+                        self.root.after(0, self.update_ui, f"Auto-fixing ChromeDriver version to v{correct_version}...")
+                        
+                        # Create a BRAND NEW options object because the old one cannot be reused
+                        options2 = uc.ChromeOptions()
+                        
+                        # Retry with the forced version
+                        driver = uc.Chrome(options=options2, use_subprocess=True, version_main=correct_version)
+                    else:
+                        raise e # Re-raise if regex fails
+                else:
+                    raise e # Re-raise if it's a different error
+            # ---------------------------------------
 
             for i, link in enumerate(links, 1):
                 filename = link.split('#')[-1] if '#' in link else link.split('/')[-1]
