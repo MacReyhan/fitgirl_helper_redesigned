@@ -1,4 +1,5 @@
 import setuptools  # Register distutils fallback
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
@@ -250,6 +251,25 @@ class FitgirlExtractorApp:
 
     # --- Step 2: Extraction ---
 
+    def get_browser_path(self):
+        """Finds the first available Chromium browser on the system."""
+        browser_paths = [
+            r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+            r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+            r"%LocalAppData%\Google\Chrome\Application\chrome.exe",
+            r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+            r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+            r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"
+        ]
+        for path in browser_paths:
+            expanded_path = os.path.expandvars(path)
+            if os.path.exists(expanded_path):
+                return expanded_path
+        return None
+
     def start_extraction_thread(self):
         selected_links = [url for url, var in self.checkbox_vars.items() if var.get()]
         
@@ -268,14 +288,31 @@ class FitgirlExtractorApp:
         driver = None
         total = len(links)
         
+        # 1. Discover the best browser automatically
+        browser_executable = self.get_browser_path()
+        if not browser_executable:
+            self.root.after(0, self.update_ui, "Error: Could not find Chrome, Brave, or Edge on your system.")
+            self.root.after(0, lambda: self.fetch_btn.config(state="normal"))
+            self.root.after(0, lambda: self.extract_btn.config(state="normal"))
+            return
+
+        browser_name = os.path.basename(browser_executable).replace('.exe', '')
+        self.root.after(0, self.update_ui, f"Initializing using {browser_name} to bypass Cloudflare...", 0, total)
+        
+        # Helper function to generate driver safely
+        def create_driver(version=None):
+            opts = uc.ChromeOptions()
+            return uc.Chrome(
+                options=opts, 
+                use_subprocess=True, 
+                browser_executable_path=browser_executable, 
+                version_main=version
+            )
+        
         try:
-            self.root.after(0, self.update_ui, f"Initializing browser to bypass Cloudflare...", 0, total)
-            
-            # --- NEW AUTO-VERSION FALLBACK LOGIC ---
+            # 2. Chrome Driver Auto-Version Logic
             try:
-                # Try normally first with a fresh options object
-                options1 = uc.ChromeOptions()
-                driver = uc.Chrome(options=options1, use_subprocess=True)
+                driver = create_driver()
             except Exception as e:
                 error_msg = str(e)
                 if "Current browser version is" in error_msg:
@@ -284,18 +321,14 @@ class FitgirlExtractorApp:
                     if match:
                         correct_version = int(match.group(1))
                         self.root.after(0, self.update_ui, f"Auto-fixing ChromeDriver version to v{correct_version}...")
-                        
-                        # Create a BRAND NEW options object because the old one cannot be reused
-                        options2 = uc.ChromeOptions()
-                        
-                        # Retry with the forced version
-                        driver = uc.Chrome(options=options2, use_subprocess=True, version_main=correct_version)
+                        driver = create_driver(version=correct_version)
                     else:
                         raise e # Re-raise if regex fails
                 else:
                     raise e # Re-raise if it's a different error
             # ---------------------------------------
 
+            # 3. Extraction Loop
             for i, link in enumerate(links, 1):
                 filename = link.split('#')[-1] if '#' in link else link.split('/')[-1]
                 self.root.after(0, self.update_ui, f"Processing [{i}/{total}]: {filename}")
