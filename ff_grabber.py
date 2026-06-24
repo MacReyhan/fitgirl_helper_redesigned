@@ -95,10 +95,15 @@ class FitgirlExtractorApp:
         
         self.extract_btn = ttk.Button(controls_frame, text="2. Extract Selected", command=self.start_extraction_thread, state="disabled")
         self.extract_btn.pack(side="right", padx=2)
-        
         self.browser_var = tk.StringVar(value="Auto-Detect Browser")
         self.browser_combo = ttk.Combobox(controls_frame, textvariable=self.browser_var, state="readonly", width=18)
-        self.browser_combo['values'] = ("Auto-Detect Browser", "Mozilla Firefox", "Google Chrome", "Microsoft Edge")
+        self.browser_combo['values'] = (
+                    "Auto-Detect Browser", 
+                    "Google Chrome", 
+                    "Microsoft Edge", 
+                    "Brave", 
+                    "Mozilla Firefox"
+                )
         self.browser_combo.pack(side="right", padx=(5, 10))
 
         # 4. Progress Bar
@@ -219,7 +224,8 @@ class FitgirlExtractorApp:
     def run_fetch(self, url):
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            res = requests.get(url, headers=headers)
+            res = requests.get(url, headers=headers, timeout=10) # Restored Timeout
+            res.raise_for_status() 
             soup = BeautifulSoup(res.text, 'html.parser')
             
             ff_links = []
@@ -229,6 +235,10 @@ class FitgirlExtractorApp:
             
             self.root.after(0, self.populate_checkboxes, ff_links)
             
+        except requests.exceptions.ConnectionError:
+            # Restored Network Block warning!
+            self.root.after(0, self.update_ui, "Network Error: Cannot reach FitGirl. Is your ISP blocking it? Try a VPN/Custom DNS.")
+            self.root.after(0, lambda: self.fetch_btn.config(state="normal"))
         except Exception as e:
             self.root.after(0, self.update_ui, f"Error fetching links: {str(e)}")
             self.root.after(0, lambda: self.fetch_btn.config(state="normal"))
@@ -255,9 +265,7 @@ class FitgirlExtractorApp:
 
 
     # --- Step 2: Extraction ---
-
     def get_browser_path(self, selected_browser="Auto-Detect Browser"):
-        """Finds the browser based on user selection or auto-detect."""
         browser_paths = {
             "Google Chrome": [
                 r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
@@ -268,6 +276,11 @@ class FitgirlExtractorApp:
                 r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
                 r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
                 r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"
+            ],
+            "Brave": [
+                r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
+                r"%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe",
+                r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"
             ],
             "Mozilla Firefox": [
                 r"%ProgramFiles%\Mozilla Firefox\firefox.exe",
@@ -329,7 +342,20 @@ class FitgirlExtractorApp:
                 opts.set_preference("dom.webdriver.enabled", False)
                 opts.set_preference("useAutomationExtension", False)
                 return webdriver.Firefox(options=opts)
+                
+            elif browser_name.lower() == 'msedge':
+                from selenium import webdriver
+                from selenium.webdriver.edge.options import Options
+                opts = Options()
+                opts.binary_location = browser_executable
+                # Basic stealth for standard Edge driver
+                opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+                opts.add_experimental_option('useAutomationExtension', False)
+                opts.add_argument("--disable-blink-features=AutomationControlled")
+                return webdriver.Edge(options=opts)
+                
             else:
+                # Chrome and Brave use the powerful undetected-chromedriver
                 opts = uc.ChromeOptions()
                 return uc.Chrome(
                     options=opts, 
@@ -339,12 +365,13 @@ class FitgirlExtractorApp:
                 )
         
         try:
-            # 2. Chrome Driver Auto-Version Logic
+            # 2. Driver Auto-Version Logic
             try:
                 driver = create_driver()
             except Exception as e:
                 error_msg = str(e)
-                if browser_name.lower() != 'firefox' and "Current browser version is" in error_msg:
+                # Only apply the uc.Chrome auto-version fix to Chrome/Brave
+                if browser_name.lower() not in ['firefox', 'msedge'] and "Current browser version is" in error_msg:
                     # Extract the major version number the user ACTUALLY has installed
                     match = re.search(r"Current browser version is (\d+)", error_msg)
                     if match:
@@ -357,7 +384,7 @@ class FitgirlExtractorApp:
                     raise e # Re-raise if it's a different error
             # ---------------------------------------
 
-            # 3. Extraction Loop
+            # Dynamic wait logic from PR
             for i, link in enumerate(links, 1):
                 filename = link.split('#')[-1] if '#' in link else link.split('/')[-1]
                 self.root.after(0, self.update_ui, f"Processing [{i}/{total}]: {filename}")
