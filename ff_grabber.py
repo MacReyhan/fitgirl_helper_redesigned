@@ -266,26 +266,41 @@ class FitgirlExtractorApp:
 
     # --- Step 2: Extraction ---
     def get_browser_path(self, selected_browser="Auto-Detect Browser"):
+        import sys
+        
+        # Check if running on Linux / Steam Deck
+        is_linux = sys.platform.startswith('linux')
+        
         browser_paths = {
             "Google Chrome": [
                 r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
                 r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
-                r"%LocalAppData%\Google\Chrome\Application\chrome.exe"
+                r"%LocalAppData%\Google\Chrome\Application\chrome.exe",
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable",
+                "/var/lib/flatpak/exports/bin/com.google.Chrome" # Common Steam Deck Flatpak path
             ],
             "Microsoft Edge": [
                 r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
                 r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
-                r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"
+                r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe",
+                "/usr/bin/microsoft-edge-stable",
+                "/usr/bin/microsoft-edge"
             ],
             "Brave": [
                 r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
                 r"%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe",
-                r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"
+                r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe",
+                "/usr/bin/brave-browser",
+                "/usr/bin/brave",
+                "/var/lib/flatpak/exports/bin/com.brave.Browser" # Common Steam Deck Flatpak path
             ],
             "Mozilla Firefox": [
                 r"%ProgramFiles%\Mozilla Firefox\firefox.exe",
                 r"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe",
-                r"%LocalAppData%\Mozilla Firefox\firefox.exe"
+                r"%LocalAppData%\Mozilla Firefox\firefox.exe",
+                "/usr/bin/firefox",
+                "/var/lib/flatpak/exports/bin/org.mozilla.firefox"
             ]
         }
         
@@ -297,10 +312,12 @@ class FitgirlExtractorApp:
                 paths_to_check.extend(paths)
 
         for path in paths_to_check:
+            # os.path.expandvars handles the Windows % variables, safely ignores Linux ones
             expanded_path = os.path.expandvars(path)
             if os.path.exists(expanded_path):
                 return expanded_path
         return None
+    
 
     def start_extraction_thread(self):
         selected_links = [url for url, var in self.checkbox_vars.items() if var.get()]
