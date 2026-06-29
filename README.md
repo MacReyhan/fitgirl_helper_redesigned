@@ -100,7 +100,16 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 ## 🤝 Credits & Acknowledgements
 
-- **FitGirl Repacks** - for providing a catalog of compressed repack pages.
-- **QFluentWidgets** - for the gorgeous WinUI 3 style Qt components.
-- **Undetected-chromedriver & Selenium** - for standard-setting browser automation tools.
-- **BeautifulSoup4** - for lightweight HTML parsing.
+### Original Project & Upstream Repo
+- **Original Upstream Repository**: [zouhirdev/fitgirl-ff-link-extractor](https://github.com/zouhirdev/fitgirl-ff-link-extractor) by [Zouhir Dev](https://github.com/zouhirdev).
+
+### Contributors
+- **[Zouhir Dev](https://github.com/zouhirdev)** - Original creator and lead developer.
+- **[Madhurjya Dasgupta (LunaticPython2003)](https://github.com/LunaticPython2003)** - Added Firefox support and browser selection dropdown.
+- **[MacReyhan](https://github.com/MacReyhan)** - Rebuilt/migrated to PyQt6 & `QFluentWidgets`, fully redesigned the interface with Fluent UI 3 theme toggling, and added automated CI/CD builds.
+
+### Libraries & Resources
+- **[FitGirl Repacks](https://fitgirl-repacks.site/)** - For providing a catalog of compressed repack pages.
+- **[QFluentWidgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets)** - For the gorgeous WinUI 3 style Qt components.
+- **[Undetected-chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) & [Selenium](https://github.com/SeleniumHQ/selenium)** - For standard-setting browser automation tools.
+- **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** - For lightweight HTML parsing.
